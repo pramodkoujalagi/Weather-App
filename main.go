@@ -8,7 +8,7 @@ import (
 )
 
 type apiConfigData struct {
-	OpenWeatherMapApiKey string `json: "OpenWeatherMapApiKey"`
+	OpenWeatherMapApiKey string `json:"OpenWeatherMapApiKey"`
 }
 
 type weatherData struct {
@@ -16,6 +16,16 @@ type weatherData struct {
 	Main struct {
 		Kelvin float64 `json:"temp"`
 	} `json:"main"`
+	Celsius    float64 `json:"celsius"`
+	Fahrenheit float64 `json:"fahrenheit"`
+}
+
+func kelvinToCelsius(k float64) float64 {
+	return k - 273.15
+}
+
+func kelvinToFahrenheit(k float64) float64 {
+	return (k-273.15)*9/5 + 32
 }
 
 func loadApiConfig(filename string) (apiConfigData, error) {
@@ -54,13 +64,19 @@ func query(city string) (weatherData, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
 		return weatherData{}, err
 	}
+
+	// Convert Kelvin to Celsius and Fahrenheit
+	d.Celsius = kelvinToCelsius(d.Main.Kelvin)
+	d.Fahrenheit = kelvinToFahrenheit(d.Main.Kelvin)
+
 	return d, nil
 }
 
 func main() {
+	http.Handle("/", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/hello", hello)
 
-	http.HandleFunc("/weather",
+	http.HandleFunc("/weather/",
 		func(w http.ResponseWriter, r *http.Request) {
 			city := strings.SplitN(r.URL.Path, "/", 3)[2]
 			data, err := query(city)
